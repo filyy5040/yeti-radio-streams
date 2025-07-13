@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,41 +35,6 @@ export const MusicPlayer = ({ apiKey, onGoHome }: MusicPlayerProps) => {
   const [searchResults, setSearchResults] = useState<VideoItem[]>([]);
   const [currentVideo, setCurrentVideo] = useState<VideoItem | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  
-  // Stati del player per mobile
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(50);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const [playerRef, setPlayerRef] = useState<any>(null);
-
-  // Inizializzazione YouTube API
-  useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-
-      window.onYouTubeIframeAPIReady = () => {
-        console.log('YouTube API ready');
-      };
-    }
-  }, []);
-
-  // Aggiorna progresso
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (playerRef && isPlaying) {
-        const current = playerRef.getCurrentTime();
-        setCurrentTime(current);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, playerRef]);
 
   const searchVideos = async (query: string) => {
     if (!query.trim()) return;
@@ -113,108 +78,14 @@ export const MusicPlayer = ({ apiKey, onGoHome }: MusicPlayerProps) => {
 
   const handlePlayVideo = (video: VideoItem) => {
     setCurrentVideo(video);
-    initializePlayer(video);
     toast({
       title: "Riproduzione avviata",
       description: `Ora in riproduzione: ${video.snippet.title}`,
     });
   };
 
-  const initializePlayer = (video: VideoItem) => {
-    if (playerRef) {
-      playerRef.destroy();
-    }
-
-    const newPlayer = new window.YT.Player('youtube-player-hidden', {
-      width: '1',
-      height: '1',
-      videoId: video.id.videoId,
-      playerVars: {
-        autoplay: 1,
-        controls: 0,
-        showinfo: 0,
-        rel: 0,
-        modestbranding: 1,
-        playsinline: 1,
-      },
-      events: {
-        onReady: (event: any) => {
-          setIsPlayerReady(true);
-          setDuration(event.target.getDuration());
-          event.target.setVolume(volume);
-          setIsPlaying(true);
-        },
-        onStateChange: (event: any) => {
-          if (event.data === window.YT.PlayerState.PLAYING) {
-            setIsPlaying(true);
-          } else if (event.data === window.YT.PlayerState.PAUSED) {
-            setIsPlaying(false);
-          } else if (event.data === window.YT.PlayerState.ENDED) {
-            setIsPlaying(false);
-            setCurrentTime(0);
-          }
-        },
-      },
-    });
-
-    setPlayerRef(newPlayer);
-  };
-
-  const togglePlayPause = () => {
-    if (!playerRef) return;
-    
-    if (isPlaying) {
-      playerRef.pauseVideo();
-    } else {
-      playerRef.playVideo();
-    }
-  };
-
-  const handleSeek = (value: number[]) => {
-    if (!playerRef) return;
-    const seekTime = value[0];
-    playerRef.seekTo(seekTime);
-    setCurrentTime(seekTime);
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    if (!playerRef) return;
-    const newVolume = value[0];
-    setVolume(newVolume);
-    playerRef.setVolume(newVolume);
-    
-    if (newVolume === 0) {
-      setIsMuted(true);
-    } else if (isMuted) {
-      setIsMuted(false);
-    }
-  };
-
-  const toggleMute = () => {
-    if (!playerRef) return;
-    
-    if (isMuted) {
-      playerRef.unMute();
-      setIsMuted(false);
-      setVolume(playerRef.getVolume());
-    } else {
-      playerRef.mute();
-      setIsMuted(true);
-    }
-  };
-
-  const skipSeconds = (seconds: number) => {
-    if (!playerRef) return;
-    const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
-    playerRef.seekTo(newTime);
-    setCurrentTime(newTime);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/10">
-      {/* Player YouTube nascosto */}
-      <div id="youtube-player-hidden" className="sr-only"></div>
-
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50">
         <div className="container mx-auto px-4 py-3 md:py-4">
@@ -289,28 +160,7 @@ export const MusicPlayer = ({ apiKey, onGoHome }: MusicPlayerProps) => {
       </div>
 
       {/* Player Mobile */}
-      <MobilePlayer
-        currentVideo={currentVideo}
-        isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration}
-        volume={volume}
-        isMuted={isMuted}
-        isPlayerReady={isPlayerReady}
-        onTogglePlayPause={togglePlayPause}
-        onSeek={handleSeek}
-        onVolumeChange={handleVolumeChange}
-        onToggleMute={toggleMute}
-        onSkipSeconds={skipSeconds}
-      />
+      <MobilePlayer currentVideo={currentVideo} />
     </div>
   );
 };
-
-// Dichiarazione globale per l'API YouTube
-declare global {
-  interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
-  }
-}
